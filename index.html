@@ -99,11 +99,43 @@
   </section>
 
   <section id="kontakt">
-    <div class="wrap contact">
-      <p class="eyebrow">Kontakt</p>
-      <h2>Porozmawiajmy</h2>
-      <p class="sub">Pytania, współpraca, zgłoszenia – odpowiadamy w kilka dni roboczych.</p>
-      <a class="mail" href="mailto:luxproapplications@gmail.com">luxproapplications@gmail.com</a>
+    <div class="wrap contact-grid">
+      <div>
+        <p class="eyebrow">Kontakt</p>
+        <h2>Porozmawiajmy</h2>
+        <p class="sub">Pytania, współpraca, zgłoszenia błędów – odpowiadamy w kilka dni roboczych.</p>
+        <p class="alt-mail">Wolisz napisać bezpośrednio?<br><a class="mail" href="mailto:luxproapplications@gmail.com">luxproapplications@gmail.com</a></p>
+      </div>
+
+      <form id="contact-form" class="card form" action="mailto:luxproapplications@gmail.com" method="post" enctype="text/plain" novalidate>
+        <div class="row2">
+          <div class="field">
+            <label for="f-name">Imię</label>
+            <input id="f-name" name="name" type="text" autocomplete="name" maxlength="80" required>
+          </div>
+          <div class="field">
+            <label for="f-email">E-mail</label>
+            <input id="f-email" name="email" type="email" autocomplete="email" maxlength="120" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-topic">Temat</label>
+          <select id="f-topic" name="topic">
+            <option>Pytanie ogólne</option>
+            <option>Zgłoszenie błędu w aplikacji</option>
+            <option>Współpraca</option>
+            <option>Inne</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-msg">Wiadomość</label>
+          <textarea id="f-msg" name="message" rows="5" maxlength="3000" required></textarea>
+        </div>
+        <input type="checkbox" name="botcheck" id="f-bot" tabindex="-1" autocomplete="off" style="display:none">
+        <button class="btn" type="submit" id="f-send">Wyślij wiadomość</button>
+        <p class="fine">Wysyłając formularz, zgadzasz się na przetwarzanie danych w celu odpowiedzi. Szczegóły w <a href="/privacy.html">polityce prywatności</a>.</p>
+        <p id="f-status" class="status" role="status" aria-live="polite"></p>
+      </form>
     </div>
   </section>
 </main>
@@ -115,6 +147,79 @@
   </div>
 </footer>
 <script>document.getElementById('y').textContent=new Date().getFullYear()</script>
+<script>
+(function () {
+  // Klucz dostępu z web3forms.com (jest publiczny z założenia). Dopóki nie zostanie wpisany,
+  // formularz otwiera program pocztowy z gotową wiadomością.
+  var KEY = 'WSTAW-KLUCZ-WEB3FORMS';
+  var TO = 'luxproapplications@gmail.com';
+
+  var form = document.getElementById('contact-form');
+  var btn = document.getElementById('f-send');
+  var out = document.getElementById('f-status');
+  if (!form) return;
+
+  function say(msg, kind) {
+    out.textContent = msg;
+    out.className = 'status ' + (kind || '');
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    var data = {
+      name: document.getElementById('f-name').value.trim(),
+      email: document.getElementById('f-email').value.trim(),
+      topic: document.getElementById('f-topic').value,
+      message: document.getElementById('f-msg').value.trim()
+    };
+    if (document.getElementById('f-bot').checked) return; // pułapka na boty
+
+    if (KEY.indexOf('WSTAW') === 0) {
+      var body = data.message + '\n\n— ' + data.name + ' (' + data.email + ')';
+      window.location.href = 'mailto:' + TO + '?subject=' + encodeURIComponent(data.topic + ' – luxproapplications.pl') + '&body=' + encodeURIComponent(body);
+      say('Otworzyliśmy Twój program pocztowy z gotową wiadomością. Wystarczy kliknąć „Wyślij”.', 'ok');
+      return;
+    }
+
+    btn.disabled = true;
+    var label = btn.textContent;
+    btn.textContent = 'Wysyłanie…';
+    say('', '');
+
+    fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        access_key: KEY,
+        subject: data.topic + ' – luxproapplications.pl',
+        from_name: 'Formularz luxproapplications.pl',
+        name: data.name,
+        email: data.email,
+        message: data.message,
+        botcheck: ''
+      })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.success) {
+          form.reset();
+          say('Dziękujemy! Wiadomość została wysłana. Odpowiemy w ciągu kilku dni roboczych.', 'ok');
+        } else {
+          throw new Error('fail');
+        }
+      })
+      .catch(function () {
+        say('Nie udało się wysłać wiadomości. Spróbuj ponownie lub napisz na ' + TO + '.', 'err');
+      })
+      .then(function () {
+        btn.disabled = false;
+        btn.textContent = label;
+      });
+  });
+})();
+</script>
 <script src="/tiles.js" defer></script>
 </body>
 </html>
